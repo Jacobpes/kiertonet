@@ -1,6 +1,7 @@
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from bs4 import BeautifulSoup
 import requests
 import time
 import os
@@ -39,7 +40,7 @@ else:
 
 
 def send_email(subject, body):
-    print("sending email:", subject, body)
+    # print("sending email:", subject, body)
     msg = MIMEMultipart()
     msg['From'] = SENDER_EMAIL
     msg['To'] = RECEIVER_EMAIL
@@ -117,11 +118,22 @@ def searchAgent():
         item_id = str(item.get('id'))
         if item_id not in item_id_memory:
             new_item = True
+            item_picture_url = getItemPictureUrl(item.get('fullUrl'))
+            print(item_picture_url)
             handle_new_item(item, index)
     if not new_item:
         print("No new items found")
 
+def getItemPictureUrl(url):
+    response = requests.get(url)
+    print("response", response.text)
+    # get image with class "carousel-image" and return the url
+    soup = BeautifulSoup(response.text, 'html.parser')
+    image_url = soup.find('img', class_='carousel-image')
+    return image_url
+
+
 # Set timeout to call searchAgent every minute to see if there are new items
 while True:
     searchAgent()
-    time.sleep(REQUEST_INTERVAL) # wait 10 minutes before calling searchAgent again
+    time.sleep(REQUEST_INTERVAL)
