@@ -1,17 +1,25 @@
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+# Search agent for Kiertonet.fi and Huutomylly.fi
+# This script fetches data from Kiertonet.fi and Huutomylly.fi and sends an email if new items are found.
 from bs4 import BeautifulSoup
 import requests
 import time
 import os
 from dotenv import load_dotenv
- 
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
+
 URLS_SEARCHAGENT = [
+    # Kiertonet.fi
     "https://kiertonet.fi/filter-auctions?page=1&search=teklab&hide_ended=0&only_sold_to_highest=0&iframe=false&scope=&scope_param=", # teklab
-    "https://kiertonet.fi/filter-auctions?page=1&search=teollisuuskone&hide_ended=1&only_sold_to_highest=0&iframe=false&scope=&scope_param=" # teollisuuskone
+    "https://kiertonet.fi/filter-auctions?page=1&search=teollisuuskone&hide_ended=1&only_sold_to_highest=0&iframe=false&scope=&scope_param=", # teollisuuskone
+    # Huutomylly.fi
+    "https://huutomylly.fi/filter-auctions?page=1&search=teklab&hide_ended=1&only_sold_to_highest=0&iframe=false&scope=&scope_param=", #teklab
+    "https://huutomylly.fi/filter-auctions?page=1&search=teollisuuskone&hide_ended=1&only_sold_to_highest=0&iframe=false&scope=&scope_param=", #teollisuuskone
 ]
 REQUEST_INTERVAL = 60 # seconds
+DEBUG = False
 
 load_dotenv()
 
@@ -23,13 +31,14 @@ SENDER_PASSWORD = os.getenv('SENDER_PASSWORD')
 RECEIVER_EMAIL = os.getenv('RECEIVER_EMAIL')
 
 # Print out the environment variables to debug
-print(f"SMTP_SERVER: {SMTP_SERVER}")
-print(f"SMTP_PORT: {SMTP_PORT}")
+if DEBUG:
+    print(f"SMTP_SERVER: {SMTP_SERVER}")
+    print(f"SMTP_PORT: {SMTP_PORT}")
 print(f"SENDER_EMAIL: {SENDER_EMAIL}")
 print(f"RECEIVER_EMAIL: {RECEIVER_EMAIL}")
 print("--------------------------------")
 print("Agent is running...")
-
+print("")
 item_id_memory = []
 # read item_id_memory from file of found. item_id_memory.txt separated by commas
 if os.path.exists('item_id_memory.txt'):
@@ -42,7 +51,6 @@ else:
     with open('item_id_memory.txt', 'w') as file:
         file.write('')
     file.close()
-
 
 def send_email(subject, body, is_html=False):
     msg = MIMEMultipart()
@@ -77,7 +85,6 @@ def send_email(subject, body, is_html=False):
         import traceback
         traceback.print_exc()
         return False
-
 
 def fetch_data(url):
     response_json = requests.get(url)
@@ -133,7 +140,7 @@ def handle_new_item(item, index, item_picture_url):
 
 def searchAgent(url):
     data = fetch_data(url)
-    # print("found", len(data), "items that match the search!")
+    print("found", len(data), "items that match the search!")
     new_item = False
     for index, item in enumerate(data):
         item_id = str(item.get('id'))
@@ -142,8 +149,8 @@ def searchAgent(url):
             item_picture_url = getItemPictureUrl(item.get('fullUrl'))
             print("item_picture_url", item_picture_url)
             handle_new_item(item, index, item_picture_url)
-    # if not new_item:
-        # print("No new items found")
+    if not new_item and DEBUG:
+        print("No new items found")
 
 def getItemPictureUrl(url):
     response = requests.get(url)
