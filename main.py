@@ -7,7 +7,10 @@ import time
 import os
 from dotenv import load_dotenv
  
-URL_SEARCHAGENT = "https://kiertonet.fi/filter-auctions?page=1&search=teklab&hide_ended=0&only_sold_to_highest=0&iframe=false&scope=&scope_param="
+URLS_SEARCHAGENT = [
+    "https://kiertonet.fi/filter-auctions?page=1&search=teklab&hide_ended=0&only_sold_to_highest=0&iframe=false&scope=&scope_param=", # teklab
+    "https://kiertonet.fi/filter-auctions?page=1&search=teollisuuskone&hide_ended=1&only_sold_to_highest=0&iframe=false&scope=&scope_param=" # teollisuuskone
+]
 REQUEST_INTERVAL = 60 # seconds
 
 load_dotenv()
@@ -24,6 +27,8 @@ print(f"SMTP_SERVER: {SMTP_SERVER}")
 print(f"SMTP_PORT: {SMTP_PORT}")
 print(f"SENDER_EMAIL: {SENDER_EMAIL}")
 print(f"RECEIVER_EMAIL: {RECEIVER_EMAIL}")
+print("--------------------------------")
+print("Agent is running...")
 
 item_id_memory = []
 # read item_id_memory from file of found. item_id_memory.txt separated by commas
@@ -39,14 +44,17 @@ else:
     file.close()
 
 
-def send_email(subject, body):
-    # print("sending email:", subject, body)
+def send_email(subject, body, is_html=False):
     msg = MIMEMultipart()
     msg['From'] = SENDER_EMAIL
     msg['To'] = RECEIVER_EMAIL
     msg['Subject'] = subject
 
-    msg.attach(MIMEText(body, 'plain'))
+    # Attach the body with appropriate MIME type
+    if is_html:
+        msg.attach(MIMEText(body, 'html'))
+    else:
+        msg.attach(MIMEText(body, 'plain'))
 
     try:
         # Use SMTP_SSL if port is 465, otherwise use SMTP and starttls
@@ -71,8 +79,8 @@ def send_email(subject, body):
         return False
 
 
-def fetch_data():
-    response_json = requests.get(URL_SEARCHAGENT)
+def fetch_data(url):
+    response_json = requests.get(url)
     return response_json.json().get('data')
 
 def process_item(item):
@@ -86,7 +94,7 @@ def process_item(item):
             item_details.append(f"{article}: {item.get(article)}")
     return item_details
 
-def handle_new_item(item, index):
+def handle_new_item(item, index, item_picture_url):
     # Ensure item_id_memory is initialized
     global item_id_memory
     if 'item_id_memory' not in globals():
@@ -99,10 +107,22 @@ def handle_new_item(item, index):
     print("item", item)
 
     item_details = process_item(item)
-    subject = "New Item Found by Search Agent" + item.get('title') + " - " + item.get('fullUrl')
-    body = "\n".join(item_details)
+    subject = "New Item Found by Search Agent: " + item.get('title') + " - " + item.get('fullUrl')
+    
+    # Ensure the item_picture_url is properly formatted
+    body_html = f"""
+    <html>
+        <body>
+            <p>New item found:</p>
+            <p>{'<br>'.join(item_details)}</p>
+            <p>Check out the image below:</p>
+            <img src="{item_picture_url}" alt="Item Image" style="max-width:600px;">
+        </body>
+    </html>
+    """
 
-    success = send_email(subject, body)
+    success = send_email(subject, body_html, is_html=True)
+    
     if success:
         item_id_memory.append(str(item.get('id')))
         item_id_memory = list(set(item_id_memory))
@@ -110,30 +130,31 @@ def handle_new_item(item, index):
             file.write(','.join(map(str, item_id_memory)))
         print("Email sent successfully!")
 
-def searchAgent():
-    data = fetch_data()
-    print("found", len(data), "items that match the search!")
+
+def searchAgent(url):
+    data = fetch_data(url)
+    # print("found", len(data), "items that match the search!")
     new_item = False
     for index, item in enumerate(data):
         item_id = str(item.get('id'))
         if item_id not in item_id_memory:
             new_item = True
             item_picture_url = getItemPictureUrl(item.get('fullUrl'))
-            print(item_picture_url)
-            handle_new_item(item, index)
-    if not new_item:
-        print("No new items found")
+            print("item_picture_url", item_picture_url)
+            handle_new_item(item, index, item_picture_url)
+    # if not new_item:
+        # print("No new items found")
 
 def getItemPictureUrl(url):
     response = requests.get(url)
-    print("response", response.text)
-    # get image with class "carousel-image" and return the url
+
     soup = BeautifulSoup(response.text, 'html.parser')
-    image_url = soup.find('img', class_='carousel-image')
+    image_url = soup.find('meta', property="og:image").get('content')
     return image_url
 
 
 # Set timeout to call searchAgent every minute to see if there are new items
 while True:
-    searchAgent()
+    for url in URLS_SEARCHAGENT:
+        searchAgent(url)
     time.sleep(REQUEST_INTERVAL)
