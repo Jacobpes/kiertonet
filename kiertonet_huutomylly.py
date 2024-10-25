@@ -14,9 +14,13 @@ URLS_SEARCHAGENT = [
     # Kiertonet.fi
     "https://kiertonet.fi/filter-auctions?page=1&search=teklab&hide_ended=0&only_sold_to_highest=0&iframe=false&scope=&scope_param=", # teklab
     "https://kiertonet.fi/filter-auctions?page=1&search=teollisuuskone&hide_ended=1&only_sold_to_highest=0&iframe=false&scope=&scope_param=", # teollisuuskone
+    "https://kiertonet.fi/filter-auctions?page=1&search=siemens&hide_ended=1&only_sold_to_highest=0&iframe=false&scope=&scope_param=", # siemens
+    "https://kiertonet.fi/filter-auctions?page=1&search=kylmätiski&hide_ended=1&only_sold_to_highest=0&iframe=false&scope=&scope_param=", #kylmätiski
     # Huutomylly.fi
     "https://huutomylly.fi/filter-auctions?page=1&search=teklab&hide_ended=1&only_sold_to_highest=0&iframe=false&scope=&scope_param=", #teklab
     "https://huutomylly.fi/filter-auctions?page=1&search=teollisuuskone&hide_ended=1&only_sold_to_highest=0&iframe=false&scope=&scope_param=", #teollisuuskone
+    "https://huutomylly.fi/filter-auctions?page=1&search=siemens&hide_ended=1&only_sold_to_highest=0&iframe=false&scope=&scope_param=", #siemens
+    "https://huutomylly.fi/filter-auctions?page=1&search=kylmätiski&hide_ended=1&only_sold_to_highest=0&iframe=false&scope=&scope_param=", #kylmätiski
 ]
 REQUEST_INTERVAL = 60 # seconds
 DEBUG = False
@@ -140,7 +144,6 @@ def handle_new_item(item, index, item_picture_url):
 
 def searchAgent(url):
     data = fetch_data(url)
-    print("found", len(data), "items that match the search!")
     new_item = False
     for index, item in enumerate(data):
         item_id = str(item.get('id'))
